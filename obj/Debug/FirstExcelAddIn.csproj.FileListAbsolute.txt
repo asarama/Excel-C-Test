@@ -1,0 +1,11 @@
+E:\Dev\Unknown\FirstExcelAddIn\FirstExcelAddIn\bin\Debug\FirstExcelAddIn.dll
+E:\Dev\Unknown\FirstExcelAddIn\FirstExcelAddIn\bin\Debug\FirstExcelAddIn.pdb
+E:\Dev\Unknown\FirstExcelAddIn\FirstExcelAddIn\bin\Debug\FirstExcelAddIn.dll.manifest
+E:\Dev\Unknown\FirstExcelAddIn\FirstExcelAddIn\bin\Debug\FirstExcelAddIn.vsto
+E:\Dev\Unknown\FirstExcelAddIn\FirstExcelAddIn\bin\Debug\Microsoft.Office.Tools.Common.v4.0.Utilities.dll
+E:\Dev\Unknown\FirstExcelAddIn\FirstExcelAddIn\obj\Debug\FirstExcelAddIn.csprojAssemblyReference.cache
+E:\Dev\Unknown\FirstExcelAddIn\FirstExcelAddIn\obj\Debug\FirstExcelAddIn.Properties.Resources.resources
+E:\Dev\Unknown\FirstExcelAddIn\FirstExcelAddIn\obj\Debug\FirstExcelAddIn.csproj.GenerateResource.cache
+E:\Dev\Unknown\FirstExcelAddIn\FirstExcelAddIn\obj\Debug\FirstExcelAddIn.csproj.CopyComplete
+E:\Dev\Unknown\FirstExcelAddIn\FirstExcelAddIn\obj\Debug\FirstExcelAddIn.dll
+E:\Dev\Unknown\FirstExcelAddIn\FirstExcelAddIn\obj\Debug\FirstExcelAddIn.pdb
