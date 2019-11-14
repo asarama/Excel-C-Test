@@ -33,7 +33,7 @@ namespace FirstExcelAddIn
 
         protected override Microsoft.Office.Core.IRibbonExtensibility CreateRibbonExtensibilityObject()
         {
-            return new Ribbon1();
+            return new CSharpTestRibbon();
         }
 
         #region VSTO generated code
