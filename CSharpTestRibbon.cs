@@ -17,7 +17,13 @@ namespace FirstExcelAddIn
         private Office.IRibbonUI ribbon;
 
         private int input_worksheet_index = 2;
+        private int input_worksheet_tenant_insert_row = 3;
+        private string[] input_worksheet_tenant_column_search_range = new string[2] { "A", "J" };
+
         private int market_worksheet_index = 3;
+        private int market_worksheet_tenant_insert_row = 9;
+        private string[] market_worksheet_tenant_column_search_range = new string[2] { "B", "DL" };
+        private int[] market_worksheet_columns = new int[2] { 17, 117 }; //26 is Q and 50 is DL
 
         public CSharpTestRibbon()
         {
@@ -57,19 +63,55 @@ namespace FirstExcelAddIn
 
         public void OnAddRowButton(Office.IRibbonControl control)
         {
+            // Add row to input sheet
             // Find next available row
-            string[] column_search_range = new string[2] { "A", "J" };
-            string target_row = FindNextEmptyRow(column_search_range, 3, this.input_worksheet_index);
+            string input_worksheet_target_row = FindNextEmptyRow(
+                this.input_worksheet_tenant_column_search_range, 
+                this.input_worksheet_tenant_insert_row, 
+                this.input_worksheet_index
+            );
+            string tenant_name = $"Tenant {(Int32.Parse(input_worksheet_target_row) - 1).ToString()}";
 
             // Get row instance and insert row above it
             Excel.Worksheet input_worksheet = ((Excel.Worksheet) Globals.ThisAddIn.Application.Worksheets[this.input_worksheet_index]);
-            Excel.Range emptyRow = input_worksheet.get_Range($"A{target_row}");
+            Excel.Range input_worksheet_empty_row = input_worksheet.get_Range($"A{input_worksheet_target_row}");
             // Since we insert our formating stays consistent
-            emptyRow.EntireRow.Insert(Excel.XlInsertShiftDirection.xlShiftDown);
+            input_worksheet_empty_row.EntireRow.Insert(Excel.XlInsertShiftDirection.xlShiftDown);
 
             // Insert new data
-            Excel.Range endRow = input_worksheet.get_Range($"A{target_row}");
-            endRow.Value2 = $"Tenant {(Int32.Parse(target_row) - 1).ToString()}";
+            SetWorksheetRowValue(input_worksheet, $"A{input_worksheet_target_row}", tenant_name);
+
+            // Add row to market assumptions row
+            // Find next available row
+            string market_worksheet_target_row = FindNextEmptyRow(
+                this.market_worksheet_tenant_column_search_range,
+                this.market_worksheet_tenant_insert_row,
+                this.market_worksheet_index
+            );
+            int market_worksheet_target_row_number = Int32.Parse(market_worksheet_target_row);
+            string market_input_value = $"=Input!C{(market_worksheet_target_row_number - 6).ToString()}";
+
+            // Get row instance and insert row above it
+            Excel.Worksheet market_worksheet = ((Excel.Worksheet)Globals.ThisAddIn.Application.Worksheets[this.market_worksheet_index]);
+            Excel.Range market_worksheet_empty_row = market_worksheet.get_Range($"B{market_worksheet_target_row}");
+            // Since we insert our formating stays consistent
+            market_worksheet_empty_row.EntireRow.Insert(Excel.XlInsertShiftDirection.xlShiftDown);
+
+            // Insert new data
+            SetWorksheetRowValue(market_worksheet, $"B{market_worksheet_target_row}", tenant_name);
+            SetWorksheetRowValue(market_worksheet, $"D{market_worksheet_target_row}", market_input_value);
+            SetWorksheetRowValue(market_worksheet, $"E{market_worksheet_target_row}:P{market_worksheet_target_row}", "0");
+            // Fill in from
+            // Q - DL
+            int current_column_number = this.market_worksheet_columns[0];
+            while(current_column_number < this.market_worksheet_columns[1])
+            {
+                string market_assumption_equation_value = this.CreateMarketAssumptionCellValue(current_column_number, market_worksheet_target_row_number);
+                SetWorksheetRowValue(market_worksheet, this.Integer2ExcelColumn(current_column_number) + market_worksheet_target_row, market_assumption_equation_value);
+                current_column_number++;
+            }
+
+
         }
 
         #endregion
@@ -135,6 +177,42 @@ namespace FirstExcelAddIn
             return true;
         }
 
+        // Update row range value
+        private static void SetWorksheetRowValue(Excel.Worksheet target_worksheet, string target_range_string, string update_value)
+        {
+            Excel.Range target_row = target_worksheet.get_Range(target_range_string);
+            target_row.Value2 = update_value;
+        }
+
+        private int MAX_CAP_CHAR_NUMBER = 97;
+        private int CHAR_IN_ALPHABET = 26;
+        // Used to convert numbers to excel columns
+        // From: https://stackoverflow.com/questions/181596/how-to-convert-a-column-number-eg-127-into-an-excel-column-eg-aa
+        private string Integer2ExcelColumn(int columnNumber)
+        {
+            int dividend = columnNumber;
+            string columnName = String.Empty;
+            int modulo;
+
+            while (dividend > 0)
+            {
+                modulo = (dividend - 1) % this.CHAR_IN_ALPHABET;
+                columnName = Convert.ToChar(this.MAX_CAP_CHAR_NUMBER + modulo).ToString() + columnName;
+                dividend = (int)((dividend - modulo) / this.CHAR_IN_ALPHABET);
+            }
+
+            return columnName.ToUpper();
+
+        }
+
+        // Create market assumption cell value
+        private string CreateMarketAssumptionCellValue(int column_number, int row_number)
+        {
+            string column_name = this.Integer2ExcelColumn(column_number);
+            string previous_column_name = this.Integer2ExcelColumn(column_number - 1);
+
+            return $"= IF(OR({column_name}$4 < Input!$G{row_number},{column_name}$4 > Input!$J{row_number}),0,IF({column_name}$4 = Input!$G{row_number},Input!$D{row_number} / 12,IF(AVERAGE({this.Integer2ExcelColumn(column_number - 12)}{row_number}:{previous_column_name}{row_number})<>{previous_column_name}{row_number},{previous_column_name}{row_number},IF(Input!$E{row_number} = \"$/SF\",{previous_column_name}{row_number}+Input!$F{row_number},IF(Input!$E{row_number} = \" % \", Q{row_number} * (1 + Input!$F{row_number} / 100))))))";
+        }
         private static string GetResourceText(string resourceName)
         {
             Assembly asm = Assembly.GetExecutingAssembly();
