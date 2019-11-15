@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Windows.Forms;
 using System.Text;
 using Excel = Microsoft.Office.Interop.Excel;
 using Office = Microsoft.Office.Core;
@@ -46,34 +47,76 @@ namespace FirstExcelAddIn
             this.ribbon = ribbonUI;
         }
 
-        // TODO: Delete row
-        // Find location of fist empty row in input sheet
+        // DELETE ROW button handler
+        // Find location of fist empty row in input and market sheet
         // Delete the row before it
-        // Find corresponding row in Market Assumptions Tab (search by tenant name) and delete it
-
         public void OnDeleteRowButton(Office.IRibbonControl control)
         {
-            // Not implemented            
+            // Find last row in input worksheet
+            string input_worksheet_target_row = FindNextEmptyRow(
+                this.input_worksheet_tenant_column_search_range,
+                this.input_worksheet_tenant_insert_row,
+                this.input_worksheet_index
+            );
+            int input_worksheet_target_row_number = Int32.Parse(input_worksheet_target_row);
+
+            // Do not allow deleting first row
+            if (input_worksheet_target_row_number == 4)
+            {
+                MessageBox.Show("Can not delete first row!");
+                return;
+            }
+
+            // Delete the row
+            Excel.Worksheet input_worksheet = ((Excel.Worksheet)Globals.ThisAddIn.Application.Worksheets[this.input_worksheet_index]);
+            Excel.Range input_worksheet_target_row_range = input_worksheet.get_Range($"A{input_worksheet_target_row_number - 1}");
+            input_worksheet_target_row_range.EntireRow.Delete();
+
+            // Find last row in market worksheet
+            string market_worksheet_target_row = FindNextEmptyRow(
+                this.market_worksheet_tenant_column_search_range,
+                this.market_worksheet_tenant_insert_row,
+                this.market_worksheet_index
+            );
+            int market_worksheet_target_row_number = Int32.Parse(market_worksheet_target_row);
+
+            // Delete the row
+            Excel.Worksheet market_worksheet = ((Excel.Worksheet)Globals.ThisAddIn.Application.Worksheets[this.market_worksheet_index]);
+            Excel.Range market_worksheet_target_row_range = market_worksheet.get_Range($"A{market_worksheet_target_row_number - 1}");
+            market_worksheet_target_row_range.EntireRow.Delete();
+
         }
 
-        // Add row
-        // Find location of first empty row in input sheet
-        // Tenant name should be Tenant ${row_number - 1}
-        // TODO: Add row to Market Assumptions sheet
-
+        // ADD ROW button handler
         public void OnAddRowButton(Office.IRibbonControl control)
         {
             // Add row to input sheet
+            int input_row_number = this.AddRowToInputWorksheet();
+
+            // Add row to market assumptions row
+            this.AddRowToMarketWorksheet(input_row_number);
+        }
+
+        #endregion
+
+        #region Main Logic
+
+        // Find location of first empty row in input sheet
+        // Add row with tenant name
+        // Tenant name should be Tenant ${row_number - 1}
+        private int AddRowToInputWorksheet()
+        {
             // Find next available row
             string input_worksheet_target_row = FindNextEmptyRow(
-                this.input_worksheet_tenant_column_search_range, 
-                this.input_worksheet_tenant_insert_row, 
+                this.input_worksheet_tenant_column_search_range,
+                this.input_worksheet_tenant_insert_row,
                 this.input_worksheet_index
             );
-            string tenant_name = $"Tenant {(Int32.Parse(input_worksheet_target_row) - 1).ToString()}";
+            int input_worksheet_target_row_number = Int32.Parse(input_worksheet_target_row);
+            string tenant_name = $"Tenant {input_worksheet_target_row_number - 2}";
 
             // Get row instance and insert row above it
-            Excel.Worksheet input_worksheet = ((Excel.Worksheet) Globals.ThisAddIn.Application.Worksheets[this.input_worksheet_index]);
+            Excel.Worksheet input_worksheet = ((Excel.Worksheet)Globals.ThisAddIn.Application.Worksheets[this.input_worksheet_index]);
             Excel.Range input_worksheet_empty_row = input_worksheet.get_Range($"A{input_worksheet_target_row}");
             // Since we insert our formating stays consistent
             input_worksheet_empty_row.EntireRow.Insert(Excel.XlInsertShiftDirection.xlShiftDown);
@@ -81,7 +124,13 @@ namespace FirstExcelAddIn
             // Insert new data
             SetWorksheetRowValue(input_worksheet, $"A{input_worksheet_target_row}", tenant_name);
 
-            // Add row to market assumptions row
+            return input_worksheet_target_row_number;
+        }
+
+        // Find location of empty row in market sheet
+        // Add row with tenant name while adding the expected formulas for the market assumption columns
+        private void AddRowToMarketWorksheet(int input_row_number)
+        {
             // Find next available row
             string market_worksheet_target_row = FindNextEmptyRow(
                 this.market_worksheet_tenant_column_search_range,
@@ -89,7 +138,7 @@ namespace FirstExcelAddIn
                 this.market_worksheet_index
             );
             int market_worksheet_target_row_number = Int32.Parse(market_worksheet_target_row);
-            string market_input_value = $"=Input!C{(market_worksheet_target_row_number - 6).ToString()}";
+            string market_input_value = $"=Input!C{input_row_number.ToString()}";
 
             // Get row instance and insert row above it
             Excel.Worksheet market_worksheet = ((Excel.Worksheet)Globals.ThisAddIn.Application.Worksheets[this.market_worksheet_index]);
@@ -98,20 +147,17 @@ namespace FirstExcelAddIn
             market_worksheet_empty_row.EntireRow.Insert(Excel.XlInsertShiftDirection.xlShiftDown);
 
             // Insert new data
-            SetWorksheetRowValue(market_worksheet, $"B{market_worksheet_target_row}", tenant_name);
+            SetWorksheetRowValue(market_worksheet, $"B{market_worksheet_target_row}", $"=Input!A{input_row_number.ToString()}");
             SetWorksheetRowValue(market_worksheet, $"D{market_worksheet_target_row}", market_input_value);
             SetWorksheetRowValue(market_worksheet, $"E{market_worksheet_target_row}:P{market_worksheet_target_row}", "0");
-            // Fill in from
-            // Q - DL
+            // Fill in from from rows Q to DL
             int current_column_number = this.market_worksheet_columns[0];
-            while(current_column_number < this.market_worksheet_columns[1])
+            while (current_column_number < this.market_worksheet_columns[1])
             {
                 string market_assumption_equation_value = this.CreateMarketAssumptionCellValue(current_column_number, market_worksheet_target_row_number);
                 SetWorksheetRowValue(market_worksheet, this.Integer2ExcelColumn(current_column_number) + market_worksheet_target_row, market_assumption_equation_value);
                 current_column_number++;
             }
-
-
         }
 
         #endregion
@@ -167,7 +213,14 @@ namespace FirstExcelAddIn
             foreach (var cell in cell_range_values)
             {
                 // TODO: This check migth fail for cells that have data that can not be cast to a string
-                string cell_value = ((string)cell);
+                string cell_value = String.Empty;
+                try
+                {
+                    cell_value = cell.ToString();
+                } catch(Exception e)
+                {
+                    cell_value = ((String)cell);
+                }
                 if (!String.IsNullOrEmpty(cell_value))
                 {
                     return false;
